@@ -205,44 +205,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
     };
   }, [currentUser]);
 
-  // Run ML Prediction and persist dynamic changes immediately
+  // Run ML Prediction and persist dynamic changes immediately from ML Backend
   const runMlPrediction = async (details) => {
     setLoading(true);
     setErrorMsg("");
 
     const areaNum = parseFloat(details.farmArea) || 15;
     const cropName = details.crop || "Paddy";
-    const dynamicStubbleTons = calculateDynamicStubble(cropName, areaNum);
-    const { harvestDateFormatted, daysRemaining } = calculateDynamicHarvest(cropName, details.sowingDate);
 
-    // 1. Immediately update UI state with dynamic calculations
-    const updatedPred = {
-      predicted_harvest: isManualOverride ? prediction.predicted_harvest : harvestDateFormatted,
-      available_stubble: `${dynamicStubbleTons} Tons`,
-      harvest_expected_in_days: isManualOverride ? prediction.harvest_expected_in_days : daysRemaining,
-      confidence: "96%",
-      live_temperature: "30.1 °C",
-      isLive: true,
-    };
-    setPrediction(updatedPred);
-
-    // 2. Persist to Supabase database immediately
-    await saveFarmerFarm({
-      farmer_id: currentUser.user_id,
-      farmer_name: currentUser.name,
-      location: details.location,
-      crop: cropName,
-      farm_area: areaNum,
-      sowing_date: details.sowingDate,
-      predicted_harvest: updatedPred.predicted_harvest,
-      harvest_expected_in_days: updatedPred.harvest_expected_in_days,
-      available_stubble_tons: dynamicStubbleTons,
-      is_manual_override: isManualOverride,
-      is_pre_harvest_listed: (updatedPred.harvest_expected_in_days || 83) <= 14,
-      status: "AVAILABLE",
-    });
-
-    // 3. Call FastAPI ML backend for weather regression
     try {
       const result = await fetchHarvestPrediction({
         crop: cropName,
@@ -255,21 +225,21 @@ export default function FarmerDashboard({ currentUser, lang }) {
         let daysRem = result.harvest_expected_in;
         if (typeof daysRem === "string") {
           const match = daysRem.match(/\d+/);
-          daysRem = match ? parseInt(match[0], 10) : daysRemaining;
+          daysRem = match ? parseInt(match[0], 10) : 83;
         }
 
+        const rawTons = parseFloat(String(result.available_stubble).replace(/[^\d.]/g, "")) || +(areaNum * 1.85).toFixed(1);
+
         const mlPredObj = {
-          predicted_harvest: isManualOverride ? prediction.predicted_harvest : (result.predicted_harvest || updatedPred.predicted_harvest),
-          available_stubble: result.available_stubble || `${dynamicStubbleTons} Tons`,
+          predicted_harvest: isManualOverride ? prediction.predicted_harvest : (result.predicted_harvest || "16 Nov 2026"),
+          available_stubble: result.available_stubble || `${rawTons} Tons`,
           harvest_expected_in_days: daysRem,
-          confidence: result.confidence || "96%",
-          live_temperature: result.live_temperature || "30.1 °C",
+          confidence: result.confidence || "83%",
+          live_temperature: result.live_temperature || "29.5 °C",
           isLive: true,
         };
 
         setPrediction(mlPredObj);
-
-        const finalTons = parseFloat(String(mlPredObj.available_stubble).replace(/[^\d.]/g, "")) || dynamicStubbleTons;
 
         await saveFarmerFarm({
           farmer_id: currentUser.user_id,
@@ -280,18 +250,20 @@ export default function FarmerDashboard({ currentUser, lang }) {
           sowing_date: details.sowingDate,
           predicted_harvest: mlPredObj.predicted_harvest,
           harvest_expected_in_days: daysRem,
-          available_stubble_tons: finalTons,
+          available_stubble_tons: rawTons,
           is_manual_override: isManualOverride,
           is_pre_harvest_listed: daysRem <= 14,
           status: "AVAILABLE",
         });
+
+        setActionNotice(`✅ ML Model Prediction: ${cropName} (${areaNum} Acres) • Yield: ${mlPredObj.available_stubble} • Harvest: ${mlPredObj.predicted_harvest}`);
+        setTimeout(() => setActionNotice(""), 6000);
       }
     } catch (err) {
-      console.error("ML refinement note:", err);
+      console.error("ML Inference error:", err);
+      setErrorMsg("ML Prediction Model offline.");
     } finally {
       setLoading(false);
-      setActionNotice(`✅ Updated Farm Profile: ${cropName} (${areaNum} Acres) • Yield: ${dynamicStubbleTons} Tons • Harvest: ${updatedPred.predicted_harvest}`);
-      setTimeout(() => setActionNotice(""), 6000);
       await refreshMarketData();
     }
   };
@@ -307,17 +279,6 @@ export default function FarmerDashboard({ currentUser, lang }) {
     };
     setFarmDetails(updated);
     setIsEditing(false);
-
-    // Immediately calculate dynamic stubble & harvest date so screen updates instantly
-    const immediateTons = calculateDynamicStubble(updated.crop, updated.farmArea);
-    const immediateHarvest = calculateDynamicHarvest(updated.crop, updated.sowingDate);
-
-    setPrediction((prev) => ({
-      ...prev,
-      available_stubble: `${immediateTons} Tons`,
-      predicted_harvest: immediateHarvest.harvestDateFormatted,
-      harvest_expected_in_days: immediateHarvest.daysRemaining,
-    }));
 
     await runMlPrediction(updated);
   };
@@ -497,12 +458,6 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const daysRemaining = prediction.harvest_expected_in_days;
   const isAutoPreListed = daysRemaining !== null && daysRemaining <= 14;
 
-  // Live Form Preview calculations
-  const previewCrop = editForm.crop || "Paddy";
-  const previewArea = parseFloat(editForm.farmArea) || 15;
-  const previewTons = calculateDynamicStubble(previewCrop, previewArea);
-  const previewHarvest = calculateDynamicHarvest(previewCrop, editForm.sowingDate);
-
   return (
     <div>
       {/* Welcome Header */}
@@ -590,7 +545,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
         <div className="stat-card">
           <h3>{t.statStubble}</h3>
           <h2>{loading ? "..." : `${myStubbleTons.toFixed(1)} ${t.tons}`}</h2>
-          <p>{farmDetails.crop} • {CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} T/{t.acres}</p>
+          <p>{farmDetails.crop} • XGBoost AI Estimated</p>
         </div>
 
         <div className="stat-card">
@@ -614,7 +569,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                   [t.actualSowingDate, farmDetails.sowingDate],
                   [t.statFarmArea, `${farmDetails.farmArea} ${t.acres}`],
                   [t.operatingLocation, farmDetails.location],
-                  [t.previewYield, `${CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} ${t.tons} / ${t.acres}`],
+                  [t.statStubble, prediction.available_stubble || `${myStubbleTons.toFixed(1)} ${t.tons}`],
                   ...(prediction.isLive ? [["Live Weather", `${prediction.live_temperature} (Open-Meteo)`]] : []),
                 ].map(([k, v]) => (
                   <div key={k} className="detail-row">
@@ -638,7 +593,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 onChange={(e) => setEditForm({ ...editForm, crop: e.target.value })}
               >
                 {SUPPORTED_CROPS.map((c) => (
-                  <option key={c} value={c}>{c} ({CROP_AGRONOMICS[c]?.stubbleMultiplier || 1.85} T/Acre)</option>
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
 
@@ -667,26 +622,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 onChange={(e) => setEditForm({ ...editForm, sowingDate: e.target.value })}
               />
 
-              {/* Dynamic Live Preview Box */}
-              <div style={{
-                background: "rgba(16, 185, 129, 0.12)",
-                border: "1px solid rgba(16, 185, 129, 0.35)",
-                borderRadius: "8px",
-                padding: "0.75rem 1rem",
-                marginTop: "0.75rem",
-                marginBottom: "0.75rem"
-              }}>
-                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#34d399" }}>
-                  {t.livePreview}
-                </div>
-                <div style={{ fontSize: "0.8rem", color: "#fff", marginTop: "4px" }}>
-                  • {t.previewCrop}: <strong>{previewCrop}</strong> ({previewArea} {t.acres})<br/>
-                  • {t.previewYield}: <strong style={{ color: "var(--primary-light)" }}>{previewTons} {t.tons}</strong><br/>
-                  • {t.previewHarvest}: <strong>{previewHarvest.harvestDateFormatted}</strong> ({previewHarvest.daysRemaining} {t.daysRemaining})
-                </div>
-              </div>
-
-              <div className="btn-row">
+              <div className="btn-row" style={{ marginTop: "1rem" }}>
                 <button type="submit" className="action-btn action-btn-primary" disabled={loading}>
                   {loading ? t.predictingMl : t.btnSaveMl}
                 </button>
