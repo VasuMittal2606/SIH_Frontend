@@ -132,14 +132,15 @@ export default function FarmerDashboard({ currentUser, lang }) {
           location: savedFarm.location || currentUser.location || "Ludhiana",
         });
 
-        setPrediction({
-          predicted_harvest: savedFarm.predicted_harvest || "16 Nov 2026",
+        setPrediction((prev) => ({
+          ...prev,
+          predicted_harvest: savedFarm.predicted_harvest || prev.predicted_harvest,
           available_stubble: `${dynamicTons} Tons`,
-          harvest_expected_in_days: savedFarm.harvest_expected_in_days || 83,
+          harvest_expected_in_days: savedFarm.harvest_expected_in_days ?? prev.harvest_expected_in_days,
           confidence: "96%",
           live_temperature: "30.1 °C",
           isLive: true,
-        });
+        }));
 
         setIsManualOverride(savedFarm.is_manual_override);
         if (savedFarm.status === "CONTRACTED") {
@@ -276,7 +277,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
       console.error("ML refinement note:", err);
     } finally {
       setLoading(false);
-      setActionNotice(`✅ Updated Farm Profile: ${cropName} (${areaNum} Acres) • Yield: ${dynamicStubbleTons} Tons`);
+      setActionNotice(`✅ Updated Farm Profile: ${cropName} (${areaNum} Acres) • Yield: ${dynamicStubbleTons} Tons • Harvest: ${updatedPred.predicted_harvest}`);
       setTimeout(() => setActionNotice(""), 6000);
       await loadUserData();
     }
@@ -286,7 +287,6 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     const updated = {
-      ...editForm,
       farmArea: parseFloat(editForm.farmArea) || 15,
       crop: editForm.crop || "Paddy",
       location: editForm.location || farmDetails.location,
@@ -294,6 +294,18 @@ export default function FarmerDashboard({ currentUser, lang }) {
     };
     setFarmDetails(updated);
     setIsEditing(false);
+
+    // Immediately calculate dynamic stubble & harvest date so screen updates instantly
+    const immediateTons = calculateDynamicStubble(updated.crop, updated.farmArea);
+    const immediateHarvest = calculateDynamicHarvest(updated.crop, updated.sowingDate);
+
+    setPrediction((prev) => ({
+      ...prev,
+      available_stubble: `${immediateTons} Tons`,
+      predicted_harvest: immediateHarvest.harvestDateFormatted,
+      harvest_expected_in_days: immediateHarvest.daysRemaining,
+    }));
+
     await runMlPrediction(updated);
   };
 
@@ -472,6 +484,12 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const daysRemaining = prediction.harvest_expected_in_days;
   const isAutoPreListed = daysRemaining !== null && daysRemaining <= 14;
 
+  // Live Form Preview calculations
+  const previewCrop = editForm.crop || "Paddy";
+  const previewArea = parseFloat(editForm.farmArea) || 15;
+  const previewTons = calculateDynamicStubble(previewCrop, previewArea);
+  const previewHarvest = calculateDynamicHarvest(previewCrop, editForm.sowingDate);
+
   return (
     <div>
       {/* Welcome Header */}
@@ -636,9 +654,28 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 onChange={(e) => setEditForm({ ...editForm, sowingDate: e.target.value })}
               />
 
+              {/* Dynamic Live Preview Box */}
+              <div style={{
+                background: "rgba(16, 185, 129, 0.12)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+                borderRadius: "8px",
+                padding: "0.75rem 1rem",
+                marginTop: "0.75rem",
+                marginBottom: "0.75rem"
+              }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#34d399" }}>
+                  ⚡ Live Dynamic Agronomic Preview:
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "#fff", marginTop: "4px" }}>
+                  • Crop: <strong>{previewCrop}</strong> ({previewArea} Acres)<br/>
+                  • Stubble Yield: <strong style={{ color: "var(--primary-light)" }}>{previewTons} Tons</strong><br/>
+                  • Predicted Harvest: <strong>{previewHarvest.harvestDateFormatted}</strong> ({previewHarvest.daysRemaining} days remaining)
+                </div>
+              </div>
+
               <div className="btn-row">
                 <button type="submit" className="action-btn action-btn-primary" disabled={loading}>
-                  {loading ? "Predicting..." : "Save & Re-run ML"}
+                  {loading ? "Predicting with ML..." : "Save & Re-run ML"}
                 </button>
                 <button type="button" className="action-btn action-btn-secondary" onClick={() => setIsEditing(false)}>
                   Cancel
@@ -648,7 +685,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
           )}
         </div>
 
-        {/* AI Prediction & Manual Override */}
+        {/* AI Prediction & Manual Calibration */}
         <div className="glass-panel">
           <h2>🤖 AI Prediction & Manual Calibration</h2>
 
