@@ -268,64 +268,68 @@ export async function getFarmerFarms(farmerId) {
 export async function saveFarmerFarm(farmData) {
   const cleanId = String(farmData.farmer_id).trim();
 
-  if (isSupabaseConfigured) {
-    const { data: existing } = await supabase
-      .from("farms")
-      .select("*")
-      .eq("farmer_id", cleanId);
-
-    if (existing && existing.length > 0) {
-      const { data, error } = await supabase
-        .from("farms")
-        .update({
-          farmer_name: farmData.farmer_name,
-          location: farmData.location,
-          crop: farmData.crop,
-          farm_area: farmData.farm_area,
-          sowing_date: farmData.sowing_date,
-          predicted_harvest: farmData.predicted_harvest,
-          harvest_expected_in_days: farmData.harvest_expected_in_days,
-          available_stubble_tons: farmData.available_stubble_tons,
-          is_manual_override: farmData.is_manual_override,
-          is_pre_harvest_listed: farmData.is_pre_harvest_listed,
-          status: farmData.status || "AVAILABLE",
-        })
-        .eq("farmer_id", cleanId)
-        .select();
-      if (error) console.error("Supabase update farm error", error);
-      return data?.[0] || farmData;
-    } else {
-      const { data, error } = await supabase
-        .from("farms")
-        .insert([{
-          ...farmData,
-          farmer_id: cleanId,
-          status: farmData.status || "AVAILABLE",
-        }])
-        .select();
-      if (error) console.error("Supabase insert farm error", error);
-      return data?.[0] || farmData;
-    }
-  }
-
+  // Always sync localStorage first for zero-latency UI consistency
   const db = getLocalDb();
   if (!db.farms) db.farms = [];
   const index = db.farms.findIndex((f) => String(f.farmer_id).trim() === cleanId);
+  let savedRecord = {
+    ...farmData,
+    farmer_id: cleanId,
+    status: farmData.status || "AVAILABLE",
+  };
+
   if (index >= 0) {
-    db.farms[index] = {
-      ...db.farms[index],
-      ...farmData,
-      farmer_id: cleanId,
-      status: farmData.status || "AVAILABLE",
-    };
+    db.farms[index] = { ...db.farms[index], ...savedRecord };
+    savedRecord = db.farms[index];
   } else {
-    farmData.id = `FARM-${Date.now().toString().slice(-4)}`;
-    farmData.farmer_id = cleanId;
-    farmData.status = farmData.status || "AVAILABLE";
-    db.farms.push(farmData);
+    savedRecord = { id: `FARM-${cleanId.slice(-4)}`, ...savedRecord };
+    db.farms.push(savedRecord);
   }
   saveLocalDb(db);
-  return farmData;
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data: existing } = await supabase
+        .from("farms")
+        .select("*")
+        .eq("farmer_id", cleanId);
+
+      if (existing && existing.length > 0) {
+        const { data, error } = await supabase
+          .from("farms")
+          .update({
+            farmer_name: farmData.farmer_name,
+            location: farmData.location,
+            crop: farmData.crop,
+            farm_area: farmData.farm_area,
+            sowing_date: farmData.sowing_date,
+            predicted_harvest: farmData.predicted_harvest,
+            harvest_expected_in_days: farmData.harvest_expected_in_days,
+            available_stubble_tons: farmData.available_stubble_tons,
+            is_manual_override: farmData.is_manual_override,
+            is_pre_harvest_listed: farmData.is_pre_harvest_listed,
+            status: farmData.status || "AVAILABLE",
+          })
+          .eq("farmer_id", cleanId)
+          .select();
+        if (error) console.error("Supabase update farm error", error);
+        return data?.[0] || savedRecord;
+      } else {
+        const { data, error } = await supabase
+          .from("farms")
+          .insert([{
+            ...savedRecord,
+          }])
+          .select();
+        if (error) console.error("Supabase insert farm error", error);
+        return data?.[0] || savedRecord;
+      }
+    } catch (e) {
+      console.error("Supabase farm sync error", e);
+    }
+  }
+
+  return savedRecord;
 }
 
 // Stubble Pooling Directory: Returns uncontracted neighbor farms

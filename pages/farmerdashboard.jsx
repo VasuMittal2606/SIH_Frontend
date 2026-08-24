@@ -115,8 +115,8 @@ export default function FarmerDashboard({ currentUser, lang }) {
     return { harvestDateFormatted: formatted, daysRemaining: diffDays };
   };
 
-  // Load User Data & Sync from DB
-  const loadUserData = async () => {
+  // 1. Initial Load of Farm Profile (Only on mount or user change)
+  const loadInitialFarmProfile = async () => {
     try {
       const userFarms = await getFarmerFarms(currentUser.user_id);
       if (userFarms && userFarms.length > 0) {
@@ -133,10 +133,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
         };
 
         setFarmDetails(loadedDetails);
-
-        if (!isEditing) {
-          setEditForm(loadedDetails);
-        }
+        setEditForm(loadedDetails);
 
         setPrediction((prev) => ({
           ...prev,
@@ -155,7 +152,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
           setIsInstantListed(true);
         }
       }
+    } catch (e) {
+      console.error("Error loading initial farm profile", e);
+    }
+  };
 
+  // 2. Continuous Market Data Refresh (Bids, Pooling Invitations, Contracts) - Does NOT touch farm profile
+  const refreshMarketData = async () => {
+    try {
       // Load active buyer bids
       const relevantBids = await getFarmerRelevantBids(currentUser.user_id, currentUser.location);
       setBids(relevantBids || []);
@@ -177,26 +181,27 @@ export default function FarmerDashboard({ currentUser, lang }) {
       const userContracts = await getUserContracts(currentUser.user_id, "farmer");
       setContracts(userContracts || []);
     } catch (e) {
-      console.error("Error loading farmer DB data", e);
+      console.error("Error refreshing market data", e);
     }
   };
 
-  // Real-time synchronization across windows & storage updates
+  // Load profile once on mount, and poll market directory continuously
   useEffect(() => {
-    loadUserData();
+    loadInitialFarmProfile();
+    refreshMarketData();
 
-    const handleSync = () => loadUserData();
+    const handleSync = () => refreshMarketData();
     window.addEventListener("storage", handleSync);
     window.addEventListener("oorvar_db_updated", handleSync);
 
-    const interval = setInterval(loadUserData, 3000);
+    const interval = setInterval(refreshMarketData, 3000);
 
     return () => {
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("oorvar_db_updated", handleSync);
       clearInterval(interval);
     };
-  }, [currentUser, isEditing]);
+  }, [currentUser]);
 
   // Run ML Prediction and persist dynamic changes immediately
   const runMlPrediction = async (details) => {
@@ -285,7 +290,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
       setLoading(false);
       setActionNotice(`✅ Updated Farm Profile: ${cropName} (${areaNum} Acres) • Yield: ${dynamicStubbleTons} Tons • Harvest: ${updatedPred.predicted_harvest}`);
       setTimeout(() => setActionNotice(""), 6000);
-      await loadUserData();
+      await refreshMarketData();
     }
   };
 
@@ -389,7 +394,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
     });
 
     setActionNotice("🚀 Instant Sell Request broadcasted to buyers! Your farm stubble is now active and listed in the market.");
-    await loadUserData();
+    await refreshMarketData();
     setTimeout(() => setActionNotice(""), 6000);
   };
 
@@ -397,7 +402,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const handleSendPoolInvite = async (neighbor) => {
     await sendPoolInvitation(currentUser, neighbor);
     setActionNotice(`📤 Stubble Pool Invitation sent to ${neighbor.farmer_name}! Waiting for their acceptance.`);
-    await loadUserData();
+    await refreshMarketData();
     setTimeout(() => setActionNotice(""), 6000);
   };
 
@@ -405,7 +410,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const handleRespondInvite = async (inviteId, accept) => {
     await respondToPoolInvitation(inviteId, accept);
     setActionNotice(accept ? "✅ Pool Invitation Accepted! Both farms are now mutually joined in the collective pool." : "❌ Invitation Declined.");
-    await loadUserData();
+    await refreshMarketData();
     setTimeout(() => setActionNotice(""), 6000);
   };
 
@@ -413,7 +418,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const handleCancelInvite = async (inviteId) => {
     await cancelPoolInvitation(inviteId);
     setActionNotice("Pool invite cancelled / unpooled.");
-    await loadUserData();
+    await refreshMarketData();
     setTimeout(() => setActionNotice(""), 5000);
   };
 
