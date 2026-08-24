@@ -257,7 +257,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
         }
 
         const mlPredObj = {
-          predicted_harvest: result.predicted_harvest || updatedPred.predicted_harvest,
+          predicted_harvest: isManualOverride ? prediction.predicted_harvest : (result.predicted_harvest || updatedPred.predicted_harvest),
           available_stubble: result.available_stubble || `${dynamicStubbleTons} Tons`,
           harvest_expected_in_days: daysRem,
           confidence: result.confidence || "96%",
@@ -279,7 +279,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
           predicted_harvest: mlPredObj.predicted_harvest,
           harvest_expected_in_days: daysRem,
           available_stubble_tons: finalTons,
-          is_manual_override: false,
+          is_manual_override: isManualOverride,
           is_pre_harvest_listed: daysRem <= 14,
           status: "AVAILABLE",
         });
@@ -454,7 +454,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
       if (contract) {
         setActionNotice(`🎉 Direct Deal Confirmed! Contract #${contract.id} with ${bid.buyer_name} for ${myStubbleTons.toFixed(1)} Tons at ₹${bid.offered_rate}/Ton.`);
-        await loadUserData();
+        await refreshMarketData();
         setTimeout(() => setActionNotice(""), 7000);
       }
       return;
@@ -471,7 +471,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
       if (contract) {
         setActionNotice(`🤝 Stubble Pool Deal Finalized! Collective supply of ${totalConfirmedPoolVolume.toFixed(1)} Tons fulfilled plant requirement of ${requiredTons} Tons at ₹${bid.offered_rate}/Ton. Contract ID: ${contract.id}`);
-        await loadUserData();
+        await refreshMarketData();
         setTimeout(() => setActionNotice(""), 8000);
       }
       return;
