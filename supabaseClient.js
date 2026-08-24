@@ -157,7 +157,6 @@ export async function registerUserProfile({ phone, role, name, location, passwor
       available_stubble_tons: defaultStubbleTons,
       status: "AVAILABLE",
       is_pre_harvest_listed: true,
-      created_at: new Date().toISOString(),
     };
     if (!db.farms) db.farms = [];
     db.farms.push(newFarm);
@@ -165,6 +164,61 @@ export async function registerUserProfile({ phone, role, name, location, passwor
 
   saveLocalDb(db);
   return newProfile;
+}
+
+export async function deleteUserProfile(userId, role) {
+  const cleanId = String(userId || "").trim();
+
+  if (isSupabaseConfigured) {
+    try {
+      // 1. Delete profile
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("user_id", cleanId);
+      if (profileErr) console.error("Error deleting profile from Supabase:", profileErr);
+
+      // 2. Delete role-specific data
+      if (role === "farmer") {
+        await supabase.from("farms").delete().eq("farmer_id", cleanId);
+        await supabase
+          .from("pool_invitations")
+          .delete()
+          .or(`sender_id.eq.${cleanId},recipient_id.eq.${cleanId}`);
+        await supabase.from("contracts").delete().eq("farmer_id", cleanId);
+      } else if (role === "buyer") {
+        await supabase.from("bids").delete().eq("buyer_id", cleanId);
+        await supabase.from("contracts").delete().eq("buyer_id", cleanId);
+      }
+    } catch (err) {
+      console.error("Supabase deleteUserProfile error:", err);
+    }
+  }
+
+  // Also clean up local DB storage synchronously
+  const db = getLocalDb();
+  if (db.profiles) {
+    db.profiles = db.profiles.filter((p) => String(p.user_id).trim() !== cleanId);
+  }
+  if (db.farms) {
+    db.farms = db.farms.filter((f) => String(f.farmer_id).trim() !== cleanId);
+  }
+  if (db.bids) {
+    db.bids = db.bids.filter((b) => String(b.buyer_id).trim() !== cleanId && String(b.target_farmer_id).trim() !== cleanId);
+  }
+  if (db.contracts) {
+    db.contracts = db.contracts.filter(
+      (c) => String(c.farmer_id).trim() !== cleanId && String(c.buyer_id).trim() !== cleanId
+    );
+  }
+  if (db.poolInvites) {
+    db.poolInvites = db.poolInvites.filter(
+      (inv) => String(inv.sender_id).trim() !== cleanId && String(inv.recipient_id).trim() !== cleanId
+    );
+  }
+
+  saveLocalDb(db);
+  return true;
 }
 
 export async function loginUserProfile({ phone, role }) {

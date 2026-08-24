@@ -4,6 +4,7 @@ import BuyerDashboard from "./pages/buyerdashboard";
 import {
   registerUserProfile,
   loginUserProfile,
+  deleteUserProfile,
   isSupabaseConfigured,
 } from "./supabaseClient";
 import "./app.css";
@@ -22,6 +23,11 @@ const translations = {
     btnSignup: "Send OTP & Proceed",
     btnVerifyOtp: "Verify OTP & Complete Registration",
     btnLogout: "Logout",
+    btnDeleteAccount: "Delete Account",
+    deleteConfirmTitle: "Permanently Delete Account?",
+    deleteConfirmDesc: "This will permanently remove your profile, farm listings, bids, and contract records from OORVAR and Supabase. This action cannot be undone.",
+    btnConfirmDelete: "Yes, Delete Permanently",
+    btnCancel: "Cancel",
     navFarmer: "🌾 Farmer Operations Portal",
     navBuyer: "🏭 Biomass Procurement Portal",
     navGovt: "🏛️ Government / CHC Command Center",
@@ -39,6 +45,11 @@ const translations = {
     btnSignup: "OTP भेजें और आगे बढ़ें",
     btnVerifyOtp: "OTP सत्यापित करें और खाता बनाएं",
     btnLogout: "लॉग आउट",
+    btnDeleteAccount: "खाता हटाएं",
+    deleteConfirmTitle: "क्या आप वाकई खाता हटाना चाहते हैं?",
+    deleteConfirmDesc: "यह आपके प्रोफ़ाइल, खेत, बोलियां और अनुबंध के सभी रिकॉर्ड को हमेशा के लिए मिटा देगा। यह क्रिया वापस नहीं ली जा सकती।",
+    btnConfirmDelete: "हाँ, हमेशा के लिए हटाएं",
+    btnCancel: "रद्द करें",
     navFarmer: "🌾 किसान संचालन पोर्टल",
     navBuyer: "🏭 बायोमास खरीद पोर्टल",
     navGovt: "🏛️ सरकारी / CHC कमांड सेंटर",
@@ -56,6 +67,11 @@ const translations = {
     btnSignup: "OTP ਭੇਜੋ ਅਤੇ ਅੱਗੇ ਵਧੋ",
     btnVerifyOtp: "OTP ਪ੍ਰਮਾਣਿਤ ਕਰੋ ਅਤੇ ਖਾਤਾ ਬਣਾਓ",
     btnLogout: "ਲੌਗ ਆਉਟ",
+    btnDeleteAccount: "ਖਾਤਾ ਮਿਟਾਓ",
+    deleteConfirmTitle: "ਕੀ ਤੁਸੀਂ ਪੱਕੇ ਤੌਰ 'ਤੇ ਖਾਤਾ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
+    deleteConfirmDesc: "ਇਹ ਤੁਹਾਡੇ ਪ੍ਰੋਫਾਈਲ, ਖੇਤ, ਬੋਲੀ ਅਤੇ ਇਕਰਾਰਨਾਮੇ ਦੇ ਸਾਰੇ ਰਿਕਾਰਡ ਨੂੰ ਪੱਕੇ ਤੌਰ 'ਤੇ ਮਿਟਾ ਦੇਵੇਗਾ।",
+    btnConfirmDelete: "ਹਾਂ, ਪੱਕੇ ਤੌਰ 'ਤੇ ਮਿਟਾਓ",
+    btnCancel: "ਰੱਦ ਕਰੋ",
     navFarmer: "🌾 ਕਿਸਾਨ ਸੰਚਾਲਨ ਪੋਰਟਲ",
     navBuyer: "🏭 ਬਾਇਓਮਾਸ ਖਰੀਦ ਪੋਰਟਲ",
     navGovt: "🏛️ ਸਰਕਾਰੀ / CHC ਕਮਾਂਡ ਸੈਂਟਰ",
@@ -217,6 +233,11 @@ function App() {
   const [lang, setLang] = useState("en");
   const t = translations[lang] || translations.en;
 
+  // Account Management States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [accountNotice, setAccountNotice] = useState("");
+
   // 1. Handle Direct Sign In (NO OTP on Sign In!)
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -296,6 +317,24 @@ function App() {
     setAuthMode("LOGIN");
   };
 
+  // 4. Handle Permanent Account Deletion
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+    setIsDeletingAccount(true);
+    try {
+      await deleteUserProfile(currentUser.user_id, currentUser.role);
+      handleLogout();
+      setShowDeleteModal(false);
+      setAccountNotice("✅ Account and all associated data permanently deleted.");
+      setTimeout(() => setAccountNotice(""), 6000);
+    } catch (err) {
+      console.error("Account deletion failed:", err);
+      setAuthError("Failed to delete account: " + (err.message || "Unknown error"));
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <>
       {/* ========= HEADER WITH OORVAR LOGO ========= */}
@@ -339,12 +378,45 @@ function App() {
             <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
           </select>
           {currentUser && (
-            <button className="btn-logout" style={{ display: "inline-block" }} onClick={handleLogout}>
-              {t.btnLogout}
-            </button>
+            <>
+              <button
+                className="btn-delete-account"
+                style={{ display: "inline-block" }}
+                onClick={() => setShowDeleteModal(true)}
+                title={t.btnDeleteAccount}
+              >
+                🗑️ {t.btnDeleteAccount}
+              </button>
+              <button className="btn-logout" style={{ display: "inline-block" }} onClick={handleLogout}>
+                {t.btnLogout}
+              </button>
+            </>
           )}
         </div>
       </header>
+
+      {/* Floating Notice Toast */}
+      {accountNotice && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          right: "20px",
+          zIndex: 9999,
+          background: "rgba(16, 185, 129, 0.95)",
+          color: "#ffffff",
+          padding: "12px 20px",
+          borderRadius: "10px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+          fontWeight: 700,
+          fontSize: "0.9rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          {accountNotice}
+        </div>
+      )}
 
       {/* ========= AUTHENTICATION SCREEN ========= */}
       {!currentUser && (
@@ -666,6 +738,58 @@ function App() {
               <GovtDashboard currentUser={currentUser} lang={lang} />
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========= DELETE ACCOUNT CONFIRMATION MODAL ========= */}
+      {showDeleteModal && (
+        <div className="auth-overlay" style={{ zIndex: 999 }}>
+          <div className="auth-card" style={{ maxWidth: "460px", border: "1px solid var(--error-border)", textAlign: "center" }}>
+            <div style={{ fontSize: "2.6rem", marginBottom: "0.5rem" }}>⚠️</div>
+            <h2 style={{ color: "#f87171", fontSize: "1.35rem" }}>{t.deleteConfirmTitle}</h2>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: "0.8rem 0 1.6rem", lineHeight: "1.6" }}>
+              {t.deleteConfirmDesc}
+            </p>
+            <div style={{ display: "flex", gap: "0.85rem", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid var(--card-border)",
+                  color: "var(--text-dark)",
+                  padding: "0.6rem 1.3rem",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  transition: "var(--transition)"
+                }}
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeletingAccount}
+              >
+                {t.btnCancel}
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                  border: "none",
+                  color: "#ffffff",
+                  padding: "0.6rem 1.3rem",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)",
+                  transition: "var(--transition)"
+                }}
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "⏳ Deleting Data..." : t.btnConfirmDelete}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

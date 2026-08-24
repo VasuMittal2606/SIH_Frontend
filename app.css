@@ -149,12 +149,34 @@ header {
 .lang-picker:hover { border-color: var(--primary); }
 .lang-picker option { background: #0f172a; }
 
+.btn-delete-account {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(239, 68, 68, 0.08);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.btn-delete-account:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
 .btn-logout {
     display: inline-flex;
     align-items: center;
-    background: rgba(239, 68, 68, 0.12);
-    color: var(--error-text);
-    border: 1px solid var(--error-border);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-dark);
+    border: 1px solid var(--card-border);
     padding: 0.4rem 0.85rem;
     border-radius: 8px;
     font-size: 0.78rem;
@@ -163,7 +185,10 @@ header {
     transition: var(--transition);
     white-space: nowrap;
 }
-.btn-logout:hover { background: rgba(239,68,68,0.22); }
+.btn-logout:hover { 
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.3);
+}
 
 /* ========= AUTH SCREEN ========= */
 .auth-overlay {
