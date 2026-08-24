@@ -115,22 +115,28 @@ export default function FarmerDashboard({ currentUser, lang }) {
     return { harvestDateFormatted: formatted, daysRemaining: diffDays };
   };
 
-  // Load User Data & Auto-save Farm in DB
+  // Load User Data & Sync from DB
   const loadUserData = async () => {
     try {
       const userFarms = await getFarmerFarms(currentUser.user_id);
       if (userFarms && userFarms.length > 0) {
         const savedFarm = userFarms[0];
-        const loadedCrop = savedFarm.crop || "Paddy";
-        const loadedArea = parseFloat(savedFarm.farm_area) || 15;
+        const loadedCrop = savedFarm.crop || farmDetails.crop;
+        const loadedArea = parseFloat(savedFarm.farm_area) || farmDetails.farmArea;
         const dynamicTons = parseFloat(savedFarm.available_stubble_tons) || calculateDynamicStubble(loadedCrop, loadedArea);
 
-        setFarmDetails({
+        const loadedDetails = {
           crop: loadedCrop,
-          sowingDate: savedFarm.sowing_date || "2026-07-20",
+          sowingDate: savedFarm.sowing_date || farmDetails.sowingDate,
           farmArea: loadedArea,
           location: savedFarm.location || currentUser.location || "Ludhiana",
-        });
+        };
+
+        setFarmDetails(loadedDetails);
+
+        if (!isEditing) {
+          setEditForm(loadedDetails);
+        }
 
         setPrediction((prev) => ({
           ...prev,
@@ -183,14 +189,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
     window.addEventListener("storage", handleSync);
     window.addEventListener("oorvar_db_updated", handleSync);
 
-    const interval = setInterval(loadUserData, 2500);
+    const interval = setInterval(loadUserData, 3000);
 
     return () => {
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("oorvar_db_updated", handleSync);
       clearInterval(interval);
     };
-  }, [currentUser]);
+  }, [currentUser, isEditing]);
 
   // Run ML Prediction and persist dynamic changes immediately
   const runMlPrediction = async (details) => {
@@ -213,7 +219,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
     };
     setPrediction(updatedPred);
 
-    // 2. Persist to database immediately
+    // 2. Persist to Supabase database immediately
     await saveFarmerFarm({
       farmer_id: currentUser.user_id,
       farmer_name: currentUser.name,
@@ -229,7 +235,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
       status: "AVAILABLE",
     });
 
-    // 3. Call ML API for live weather regression refinement
+    // 3. Call FastAPI ML backend for weather regression
     try {
       const result = await fetchHarvestPrediction({
         crop: cropName,
@@ -287,10 +293,10 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     const updated = {
-      farmArea: parseFloat(editForm.farmArea) || 15,
-      crop: editForm.crop || "Paddy",
-      location: editForm.location || farmDetails.location,
-      sowingDate: editForm.sowingDate || farmDetails.sowingDate,
+      farmArea: parseFloat(editForm.farmArea) || farmDetails.farmArea || 15,
+      crop: editForm.crop || farmDetails.crop || "Paddy",
+      location: editForm.location || farmDetails.location || "Ludhiana",
+      sowingDate: editForm.sowingDate || farmDetails.sowingDate || "2026-07-20",
     };
     setFarmDetails(updated);
     setIsEditing(false);
@@ -611,7 +617,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
               </div>
 
               <div className="btn-row">
-                <button className="action-btn action-btn-primary" onClick={() => { setEditForm(farmDetails); setIsEditing(true); }}>
+                <button className="action-btn action-btn-primary" onClick={() => { setEditForm({ ...farmDetails }); setIsEditing(true); }}>
                   Edit Farm Profile
                 </button>
               </div>
