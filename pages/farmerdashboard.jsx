@@ -15,6 +15,7 @@ import {
   getEstimatedDistance,
   isSupabaseConfigured,
 } from "../supabaseClient";
+import { translations } from "../translations";
 
 const SUPPORTED_CROPS = [
   "Paddy", "Wheat", "Mustard", "Cotton", "Sugarcane",
@@ -54,6 +55,7 @@ const DISTRICTS = [
 ];
 
 export default function FarmerDashboard({ currentUser, lang }) {
+  const t = translations[lang] || translations.en;
   const [farmDetails, setFarmDetails] = useState({
     crop: "Paddy",
     sowingDate: "2026-07-20",
@@ -505,27 +507,27 @@ export default function FarmerDashboard({ currentUser, lang }) {
     <div>
       {/* Welcome Header */}
       <div className="welcome-section">
-        <h1>🌾 Welcome, {currentUser?.name || "Farmer"}</h1>
+        <h1>🌾 {t.welcomeFarmer}, {currentUser?.name || "Farmer"}</h1>
         <p>
-          Logged in as ID: <strong>{currentUser?.user_id}</strong> • Location: <strong>{farmDetails.location}</strong>
-          {isSupabaseConfigured && " • Connected to Supabase Cloud Database"}
+          {t.farmerId}: <strong>{currentUser?.user_id}</strong> • {t.operatingLocation}: <strong>{farmDetails.location}</strong>
+          {isSupabaseConfigured && ` • ${t.connectedCloud}`}
         </p>
       </div>
 
       {actionNotice && <div className="alert-banner badge-success" style={{ marginBottom: "1.25rem", padding: "0.85rem 1.25rem" }}>{actionNotice}</div>}
       {errorNotice && <div className="alert-banner alert-error" style={{ marginBottom: "1.25rem", padding: "0.85rem 1.25rem" }}>{errorNotice}</div>}
       {errorMsg && <div className="alert-banner alert-error">⚠️ {errorMsg}</div>}
-      {loading && <div className="alert-banner alert-loading">🤖 Running XGBoost ML inference & querying live Open-Meteo weather API...</div>}
+      {loading && <div className="alert-banner alert-loading">🤖 {t.predictingMl}</div>}
 
       {/* Inbound Pooling Invitations Notification Banner */}
       {inboundInvites.length > 0 && (
         <div className="glass-panel" style={{ border: "1px solid #34d399", background: "rgba(16, 185, 129, 0.12)", marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <h2 style={{ color: "#34d399", margin: 0 }}>📬 Inbound Stubble Pooling Invitations Received ({inboundInvites.length})</h2>
+            <h2 style={{ color: "#34d399", margin: 0 }}>{t.inboundInvitesTitle} ({inboundInvites.length})</h2>
             <span className="badge badge-success">Action Required</span>
           </div>
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Neighboring farmers have invited you to pool your stubble supply to fulfill bulk biomass plant requisitions.
+            {t.poolingSub}
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
@@ -553,14 +555,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
                     style={{ padding: "0.4rem 0.85rem", fontSize: "0.78rem" }}
                     onClick={() => handleRespondInvite(inv.id, true)}
                   >
-                    Accept Pool Invitation ✓
+                    {t.btnAccept} ✓
                   </button>
                   <button
                     className="action-btn action-btn-secondary"
                     style={{ padding: "0.4rem 0.85rem", fontSize: "0.78rem" }}
                     onClick={() => handleRespondInvite(inv.id, false)}
                   >
-                    Decline ✕
+                    {t.btnDecline} ✕
                   </button>
                 </div>
               </div>
@@ -572,29 +574,29 @@ export default function FarmerDashboard({ currentUser, lang }) {
       {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>Your Farm Area</h3>
-          <h2>{farmDetails.farmArea} <span style={{ fontSize: "1rem", fontWeight: 600 }}>Acres</span></h2>
-          <p>{farmDetails.location} District</p>
+          <h3>{t.statFarmArea}</h3>
+          <h2>{farmDetails.farmArea} <span style={{ fontSize: "1rem", fontWeight: 600 }}>{t.acres}</span></h2>
+          <p>{farmDetails.location} {t.district}</p>
         </div>
 
         <div className="stat-card">
-          <h3>Predicted Harvest</h3>
+          <h3>{t.statHarvest}</h3>
           <h2 className="stat-accent">{loading ? "..." : prediction.predicted_harvest}</h2>
           <p>
-            {isManualOverride ? "Manual Calibration" : daysRemaining !== null ? `${daysRemaining} days remaining` : "Calculating..."}
+            {isManualOverride ? t.manualOverrideLabel : daysRemaining !== null ? `${daysRemaining} ${t.daysRemaining}` : "Calculating..."}
           </p>
         </div>
 
         <div className="stat-card">
-          <h3>Your Available Stubble</h3>
-          <h2>{loading ? "..." : `${myStubbleTons.toFixed(1)} Tons`}</h2>
-          <p>{farmDetails.crop} • {CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} T/Acre</p>
+          <h3>{t.statStubble}</h3>
+          <h2>{loading ? "..." : `${myStubbleTons.toFixed(1)} ${t.tons}`}</h2>
+          <p>{farmDetails.crop} • {CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} T/{t.acres}</p>
         </div>
 
         <div className="stat-card">
-          <h3>Confirmed Stubble Pool</h3>
-          <h2 className="stat-accent">{totalConfirmedPoolVolume.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>Tons</span></h2>
-          <p>{confirmedNeighborFarms.length + 1} Farms Confirmed (Mutual)</p>
+          <h3>{t.statPool}</h3>
+          <h2 className="stat-accent">{totalConfirmedPoolVolume.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>{t.tons}</span></h2>
+          <p>{confirmedNeighborFarms.length + 1} {t.farmsConfirmed}</p>
         </div>
       </div>
 
@@ -602,17 +604,17 @@ export default function FarmerDashboard({ currentUser, lang }) {
       <div className="main-grid">
         {/* Farm Profile */}
         <div className="glass-panel">
-          <h2>🌾 Your Registered Farm Profile</h2>
+          <h2>{t.profileTitle}</h2>
 
           {!isEditing ? (
             <>
               <div>
                 {[
-                  ["Crop Type", farmDetails.crop],
-                  ["Actual Sowing Date", farmDetails.sowingDate],
-                  ["Farm Area", `${farmDetails.farmArea} Acres`],
-                  ["Operating District", farmDetails.location],
-                  ["Residue Rate", `${CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} Tons / Acre (${CROP_AGRONOMICS[farmDetails.crop]?.name || "Residue"})`],
+                  [t.cropType, farmDetails.crop],
+                  [t.actualSowingDate, farmDetails.sowingDate],
+                  [t.statFarmArea, `${farmDetails.farmArea} ${t.acres}`],
+                  [t.operatingLocation, farmDetails.location],
+                  [t.previewYield, `${CROP_AGRONOMICS[farmDetails.crop]?.stubbleMultiplier || 1.85} ${t.tons} / ${t.acres}`],
                   ...(prediction.isLive ? [["Live Weather", `${prediction.live_temperature} (Open-Meteo)`]] : []),
                 ].map(([k, v]) => (
                   <div key={k} className="detail-row">
@@ -623,13 +625,13 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
               <div className="btn-row">
                 <button className="action-btn action-btn-primary" onClick={() => { setEditForm({ ...farmDetails }); setIsEditing(true); }}>
-                  Edit Farm Profile
+                  {t.btnEditProfile}
                 </button>
               </div>
             </>
           ) : (
             <form onSubmit={handleSaveProfile}>
-              <label className="field-label">Crop Type</label>
+              <label className="field-label">{t.cropType}</label>
               <select
                 className="field-select"
                 value={editForm.crop}
@@ -640,7 +642,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 ))}
               </select>
 
-              <label className="field-label">Operating District</label>
+              <label className="field-label">{t.operatingLocation}</label>
               <select
                 className="field-select"
                 value={editForm.location}
@@ -651,14 +653,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 ))}
               </select>
 
-              <label className="field-label">Farm Size (Acres)</label>
+              <label className="field-label">{t.statFarmArea} ({t.acres})</label>
               <input
                 type="number" step="0.5" className="field-input"
                 value={editForm.farmArea}
                 onChange={(e) => setEditForm({ ...editForm, farmArea: e.target.value })}
               />
 
-              <label className="field-label">Actual Sowing Date</label>
+              <label className="field-label">{t.actualSowingDate}</label>
               <input
                 type="date" className="field-input"
                 value={editForm.sowingDate}
@@ -675,21 +677,21 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 marginBottom: "0.75rem"
               }}>
                 <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#34d399" }}>
-                  ⚡ Live Dynamic Agronomic Preview:
+                  {t.livePreview}
                 </div>
                 <div style={{ fontSize: "0.8rem", color: "#fff", marginTop: "4px" }}>
-                  • Crop: <strong>{previewCrop}</strong> ({previewArea} Acres)<br/>
-                  • Stubble Yield: <strong style={{ color: "var(--primary-light)" }}>{previewTons} Tons</strong><br/>
-                  • Predicted Harvest: <strong>{previewHarvest.harvestDateFormatted}</strong> ({previewHarvest.daysRemaining} days remaining)
+                  • {t.previewCrop}: <strong>{previewCrop}</strong> ({previewArea} {t.acres})<br/>
+                  • {t.previewYield}: <strong style={{ color: "var(--primary-light)" }}>{previewTons} {t.tons}</strong><br/>
+                  • {t.previewHarvest}: <strong>{previewHarvest.harvestDateFormatted}</strong> ({previewHarvest.daysRemaining} {t.daysRemaining})
                 </div>
               </div>
 
               <div className="btn-row">
                 <button type="submit" className="action-btn action-btn-primary" disabled={loading}>
-                  {loading ? "Predicting with ML..." : "Save & Re-run ML"}
+                  {loading ? t.predictingMl : t.btnSaveMl}
                 </button>
                 <button type="button" className="action-btn action-btn-secondary" onClick={() => setIsEditing(false)}>
-                  Cancel
+                  {t.btnCancel}
                 </button>
               </div>
             </form>
@@ -698,35 +700,35 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
         {/* AI Prediction & Manual Calibration */}
         <div className="glass-panel">
-          <h2>🤖 AI Prediction & Manual Calibration</h2>
+          <h2>{t.aiTitle}</h2>
 
           <div className="harvest-display">
             <div className="harvest-date-big">{loading ? "Calculating..." : prediction.predicted_harvest}</div>
-            <p>{isManualOverride ? "Manually Calibrated Harvest Date" : `${farmDetails.crop} Harvest Forecast (Open-Meteo Weather)`}</p>
+            <p>{isManualOverride ? t.manualOverrideLabel : `${farmDetails.crop} ${t.harvestForecast}`}</p>
             {prediction.confidence && !isManualOverride && (
               <span className="badge badge-success" style={{ marginTop: "0.6rem" }}>
-                {prediction.confidence} Confidence Score
+                {prediction.confidence} {t.confidenceScore}
               </span>
             )}
           </div>
 
           <div className="detail-row">
-            <strong>Automated Pre-Harvest Status:</strong>{" "}
+            <strong>{t.preHarvestStatus}</strong>{" "}
             {isAutoPreListed || isInstantListed ? (
-              <span className="badge badge-success">Smart Contract Active (Live Listing)</span>
+              <span className="badge badge-success">{t.smartContractActive}</span>
             ) : (
-              <span className="badge badge-warning">Scheduled (Activates 14 Days Before Harvest)</span>
+              <span className="badge badge-warning">{t.preHarvestWindow}</span>
             )}
           </div>
 
           <div className="detail-row">
-            <strong>Live CHC Machinery Status:</strong>{" "}
-            <span className="badge badge-success">Balers Available within 5km</span>
+            <strong>{t.liveChcStatus}</strong>{" "}
+            <span className="badge badge-success">{t.balersAvailable}</span>
           </div>
 
           {/* Manual Date Override Form */}
           <form onSubmit={handleApplyOverride} style={{ marginTop: "1rem" }}>
-            <label className="field-label">Manual Date Override (Field Observation)</label>
+            <label className="field-label">{t.manualOverrideLabel}</label>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <input
                 type="date"
@@ -735,14 +737,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
                 onChange={(e) => setManualDate(e.target.value)}
               />
               <button type="submit" className="action-btn action-btn-secondary" style={{ whiteSpace: "nowrap" }}>
-                Save Override
+                {t.btnSaveOverride}
               </button>
             </div>
           </form>
 
           <div className="btn-row" style={{ marginTop: "1rem" }}>
             <button className="action-btn action-btn-primary" onClick={handleInstantSellRequest}>
-              Create Instant Sell Request
+              {t.btnInstantSell}
             </button>
           </div>
         </div>
@@ -752,9 +754,9 @@ export default function FarmerDashboard({ currentUser, lang }) {
       <div className="glass-panel" style={{ border: "1px solid rgba(16, 185, 129, 0.4)", boxShadow: "0 0 25px rgba(16, 185, 129, 0.15)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <h2>🤝 Cooperative Stubble Pooling Directory (Mutual Confirmation)</h2>
+            <h2>{t.poolingTitle}</h2>
             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Send a pooling invitation to neighboring farmers. Once either farmer accepts the invitation, both portals are mutually connected and pooled tonnage is unlocked for both!
+              {t.poolingSub}
             </p>
           </div>
         </div>
@@ -774,37 +776,37 @@ export default function FarmerDashboard({ currentUser, lang }) {
           textAlign: "center"
         }}>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Your Farm Volume ({farmDetails.crop})</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>{myStubbleTons.toFixed(1)} Tons</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.statStubble} ({farmDetails.crop})</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>{myStubbleTons.toFixed(1)} {t.tons}</div>
           </div>
           <div style={{ fontSize: "1.5rem", color: "var(--primary-light)", fontWeight: "800" }}>+</div>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Confirmed Neighbors ({confirmedNeighborFarms.length})</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#60a5fa" }}>{confirmedNeighborTons.toFixed(1)} Tons</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.farmsConfirmed} ({confirmedNeighborFarms.length})</div>
+            <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "#60a5fa" }}>{confirmedNeighborTons.toFixed(1)} {t.tons}</div>
           </div>
           <div style={{ fontSize: "1.5rem", color: "var(--primary-light)", fontWeight: "800" }}>=</div>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Total Confirmed Pool Volume</div>
-            <div style={{ fontSize: "1.9rem", fontWeight: "900", color: "#34d399" }}>{totalConfirmedPoolVolume.toFixed(1)} Tons</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.statPool}</div>
+            <div style={{ fontSize: "1.9rem", fontWeight: "900", color: "#34d399" }}>{totalConfirmedPoolVolume.toFixed(1)} {t.tons}</div>
           </div>
         </div>
 
         {/* Neighboring Farmers Directory Table */}
         {neighborFarms.length === 0 ? (
           <p style={{ color: "var(--text-muted)", padding: "1.5rem 0", textAlign: "center" }}>
-            🌱 No other neighboring farms registered in this district yet. When other farmers sign up on OORVAR, they will appear in this pooling directory so you can invite them.
+            🌱 {t.neighborFarmsTitle}
           </p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Farmer / Cluster Name</th>
-                <th>District Location</th>
-                <th>Crop</th>
-                <th>Available Stubble</th>
-                <th>Harvest Readiness</th>
-                <th>Pool Status</th>
-                <th>Action</th>
+                <th>{t.farmerId} / Name</th>
+                <th>{t.district}</th>
+                <th>{t.previewCrop}</th>
+                <th>{t.statStubble}</th>
+                <th>{t.statHarvest}</th>
+                <th>{t.status}</th>
+                <th>{t.action}</th>
               </tr>
             </thead>
             <tbody>
@@ -827,26 +829,26 @@ export default function FarmerDashboard({ currentUser, lang }) {
                   <tr key={farm.id}>
                     <td>
                       <div style={{ fontWeight: 700 }}>{farm.farmer_name}</div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Farm ID: {farm.id} • {distance.toFixed(1)} km</div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>ID: {farm.id} • {distance.toFixed(1)} km</div>
                     </td>
                     <td>📍 {farm.location}</td>
                     <td>🌾 {farm.crop}</td>
                     <td>
                       <strong style={{ color: "var(--primary-light)", fontSize: "1.05rem" }}>
-                        {farm.available_stubble_tons} Tons
+                        {farm.available_stubble_tons} {t.tons}
                       </strong>
                     </td>
                     <td>
                       <div>{farm.predicted_harvest}</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{farm.harvest_expected_in_days} days to harvest</div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{farm.harvest_expected_in_days} {t.daysRemaining}</div>
                     </td>
                     <td>
                       {isAccepted ? (
-                        <span className="badge badge-success">✅ Confirmed in Pool</span>
+                        <span className="badge badge-success">✅ {t.poolAccepted}</span>
                       ) : isPendingSent ? (
-                        <span className="badge badge-warning">⏳ Invite Pending Acceptance</span>
+                        <span className="badge badge-warning">⏳ {t.inviteSent}</span>
                       ) : isPendingInbound ? (
-                        <span className="badge badge-success">📬 Received Pool Invite</span>
+                        <span className="badge badge-success">📬 {t.inboundInvitesTitle}</span>
                       ) : (
                         <span className="badge" style={{ background: "rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
                           Not In Pool
@@ -856,14 +858,14 @@ export default function FarmerDashboard({ currentUser, lang }) {
                     <td>
                       {isAccepted ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <span style={{ fontSize: "0.8rem", color: "#34d399", fontWeight: 700 }}>Tonnage Active ✓</span>
+                          <span style={{ fontSize: "0.8rem", color: "#34d399", fontWeight: 700 }}>{t.accepted} ✓</span>
                           <button
                             className="action-btn action-btn-secondary"
                             style={{ padding: "0.25rem 0.6rem", fontSize: "0.72rem" }}
                             onClick={() => handleCancelInvite(mutualInvite.id)}
-                            title="Click to leave pool"
+                            title="Leave pool"
                           >
-                            Leave Pool ✕
+                            ✕
                           </button>
                         </div>
                       ) : isPendingInbound ? (
@@ -873,28 +875,28 @@ export default function FarmerDashboard({ currentUser, lang }) {
                             style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem" }}
                             onClick={() => handleRespondInvite(mutualInvite.id, true)}
                           >
-                            Accept ✓
+                            {t.btnAccept} ✓
                           </button>
                           <button
                             className="action-btn action-btn-secondary"
                             style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem" }}
                             onClick={() => handleRespondInvite(mutualInvite.id, false)}
                           >
-                            Decline ✕
+                            {t.btnDecline} ✕
                           </button>
                         </div>
                       ) : isPendingSent ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <span style={{ fontSize: "0.8rem", color: "#fbbf24", fontWeight: 600 }}>
-                            ⏳ Awaiting Approval
+                            ⏳ {t.inviteSent}
                           </span>
                           <button
                             className="action-btn action-btn-secondary"
                             style={{ padding: "0.25rem 0.6rem", fontSize: "0.72rem" }}
                             onClick={() => handleCancelInvite(mutualInvite.id)}
-                            title="Click to cancel pending invitation"
+                            title="Cancel pending invitation"
                           >
-                            Cancel ✕
+                            ✕
                           </button>
                         </div>
                       ) : (
@@ -903,7 +905,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                           style={{ padding: "0.4rem 0.85rem", fontSize: "0.78rem" }}
                           onClick={() => handleSendPoolInvite(farm)}
                         >
-                          Send Pool Request ✉️
+                          {t.sendInvite} ✉️
                         </button>
                       )}
                     </td>
@@ -918,23 +920,23 @@ export default function FarmerDashboard({ currentUser, lang }) {
       {/* Live Buyer Bids Directed to Your Farm & Stubble Pool */}
       <div className="glass-panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <h2>🤝 Live Buyer Bids & Plant Requisitions ({bids.length})</h2>
+          <h2>{t.activeBidsTitle} ({bids.length})</h2>
           <span className="badge badge-success">Active Bids</span>
         </div>
 
         {bids.length === 0 ? (
           <p style={{ color: "var(--text-muted)", padding: "1.5rem 0", textAlign: "center" }}>
-            🌾 No pending buyer bids currently. When buyers place broadcast or direct bids in your district, they will appear here.
+            🌾 No pending buyer bids currently.
           </p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Procuring Buyer / Plant</th>
-                <th>Offered Rate</th>
-                <th>Minimum Required Volume</th>
-                <th>Pool Status & Quota Check</th>
-                <th>Action</th>
+                <th>{t.buyerPlant}</th>
+                <th>{t.offeredRate}</th>
+                <th>{t.requiredVolume}</th>
+                <th>{t.status}</th>
+                <th>{t.action}</th>
               </tr>
             </thead>
             <tbody>
@@ -952,21 +954,21 @@ export default function FarmerDashboard({ currentUser, lang }) {
                     </td>
                     <td>
                       <strong style={{ color: "var(--primary-light)", fontSize: "1.1rem" }}>
-                        ₹{parseFloat(bid.offered_rate).toLocaleString()} / ton
+                        ₹{parseFloat(bid.offered_rate).toLocaleString()} / {t.tons}
                       </strong>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{bid.target_tons} Tons</div>
+                      <div style={{ fontWeight: 800, fontSize: "1.05rem" }}>{bid.target_tons} {t.tons}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Plant Consignment Quota</div>
                     </td>
                     <td>
                       {isSingleEligible ? (
-                        <span className="badge badge-success">Your Farm Qualifies Directly</span>
+                        <span className="badge badge-success">{t.acceptDirect}</span>
                       ) : isPoolEligible ? (
                         <span className="badge badge-success">Pool Confirmed ({totalConfirmedPoolVolume.toFixed(1)} / {requiredTons} T)</span>
                       ) : (
                         <span className="badge badge-warning">
-                          Need +{(requiredTons - totalConfirmedPoolVolume).toFixed(1)} T (Get Neighbor Confirmations Above)
+                          {t.needMoreVolume}: +{(requiredTons - totalConfirmedPoolVolume).toFixed(1)} T
                         </span>
                       )}
                     </td>
@@ -981,7 +983,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                         }}
                         onClick={() => handleAcceptBid(bid)}
                       >
-                        {isSingleEligible ? "Accept Direct Bid ✓" : isPoolEligible ? "Fulfill with Pool ✓" : "Accept Bid (Check Quota)"}
+                        {isSingleEligible ? `${t.acceptDirect} ✓` : isPoolEligible ? `${t.acceptPool} ✓` : `${t.action} (Check Quota)`}
                       </button>
                     </td>
                   </tr>
@@ -994,10 +996,10 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
       {/* Financial Projections Calculator */}
       <div className="glass-panel">
-        <h2>💰 Financial Projections & Mutual Profitability Calculator (Real-Time)</h2>
+        <h2>{t.roiTitle}</h2>
         <div className="main-grid" style={{ marginBottom: 0 }}>
           <div>
-            <label className="field-label">Buyer Market Rate (₹/Ton)</label>
+            <label className="field-label">{t.marketRate}</label>
             <input
               type="number"
               className="field-input"
@@ -1005,7 +1007,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
               onChange={(e) => setCalcInputs({ ...calcInputs, marketRate: e.target.value })}
             />
 
-            <label className="field-label">Baler Rental Cost (₹/Acre)</label>
+            <label className="field-label">{t.balerRent}</label>
             <input
               type="number"
               className="field-input"
@@ -1015,7 +1017,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
           </div>
 
           <div>
-            <label className="field-label">Operator / Labor Cost (₹)</label>
+            <label className="field-label">{t.operatorCost}</label>
             <input
               type="number"
               className="field-input"
@@ -1023,7 +1025,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
               onChange={(e) => setCalcInputs({ ...calcInputs, operatorCost: e.target.value })}
             />
 
-            <label className="field-label">Tractor Diesel Expense (₹)</label>
+            <label className="field-label">{t.dieselExpense}</label>
             <input
               type="number"
               className="field-input"
@@ -1035,25 +1037,25 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
         <div className="harvest-display" style={{ marginTop: "1.25rem", display: "flex", justifyContent: "space-around", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <p>Your Farm Yield ({farmDetails.crop})</p>
+            <p>{t.previewYield} ({farmDetails.crop})</p>
             <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--text-dark)" }}>
-              {myStubbleTons.toFixed(1)} Tons
+              {myStubbleTons.toFixed(1)} {t.tons}
             </div>
           </div>
           <div>
-            <p>Gross Realization</p>
+            <p>{t.grossRevenue}</p>
             <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#60a5fa" }}>
               ₹{grossRevenue.toLocaleString()}
             </div>
           </div>
           <div>
-            <p>Total Expenses</p>
+            <p>{t.totalCost}</p>
             <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#f87171" }}>
               ₹{totalExpenses.toLocaleString()}
             </div>
           </div>
           <div>
-            <p>Projected Net Profit</p>
+            <p>{t.netProfit}</p>
             <div className="harvest-date-big" style={{ fontSize: "2rem" }}>
               ₹{projectedNetProfit.toLocaleString()}
             </div>
@@ -1063,22 +1065,22 @@ export default function FarmerDashboard({ currentUser, lang }) {
 
       {/* Transaction & Contract History */}
       <div className="glass-panel">
-        <h2>📜 Your Stubble Transaction & Contract History</h2>
+        <h2>{t.contractsTitle}</h2>
         {contracts.length === 0 ? (
           <p style={{ color: "var(--text-muted)", padding: "1rem 0" }}>
-            No confirmed transactions yet. When you fulfill or accept a buyer bid above, your contract will appear here.
+            {t.noContracts}
           </p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Contract ID</th>
-                <th>Contract Type</th>
-                <th>Buyer / Consignee</th>
-                <th>Volume</th>
-                <th>Rate / Ton</th>
-                <th>Total Value</th>
-                <th>Status</th>
+                <th>{t.contractId}</th>
+                <th>Type</th>
+                <th>{t.buyer}</th>
+                <th>{t.tonnage}</th>
+                <th>{t.rate}</th>
+                <th>{t.totalValue}</th>
+                <th>{t.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -1091,7 +1093,7 @@ export default function FarmerDashboard({ currentUser, lang }) {
                     </span>
                   </td>
                   <td>{c.buyer_name}</td>
-                  <td>{c.tonnage} Tons</td>
+                  <td>{c.tonnage} {t.tons}</td>
                   <td>₹{parseFloat(c.rate_per_ton).toLocaleString()}</td>
                   <td><strong style={{ color: "var(--primary-light)" }}>₹{parseFloat(c.total_value).toLocaleString()}</strong></td>
                   <td><span className="badge badge-success">{c.status}</span></td>

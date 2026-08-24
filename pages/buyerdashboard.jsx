@@ -7,6 +7,7 @@ import {
   getEstimatedDistance,
   isSupabaseConfigured,
 } from "../supabaseClient";
+import { translations } from "../translations";
 
 const DISTRICTS = [
   "Ludhiana", "Patiala", "Sangrur", "Bathinda", "Jalandhar",
@@ -15,6 +16,7 @@ const DISTRICTS = [
 ];
 
 export default function BuyerDashboard({ currentUser, lang }) {
+  const t = translations[lang] || translations.en;
   const [bids, setBids] = useState([]);
   const [farms, setFarms] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -128,10 +130,10 @@ export default function BuyerDashboard({ currentUser, lang }) {
     <div>
       {/* Welcome */}
       <div className="welcome-section">
-        <h1>🏭 Welcome, {currentUser?.name || "Biomass Buyer"}</h1>
+        <h1>🏭 {t.welcomeBuyer}, {currentUser?.name || "Biomass Buyer"}</h1>
         <p>
-          Logged in as ID: <strong>{currentUser?.user_id}</strong> • Facility Location: <strong>{currentUser?.location}</strong>
-          {isSupabaseConfigured && " • Connected to Supabase Cloud Database"}
+          ID: <strong>{currentUser?.user_id}</strong> • Location: <strong>{currentUser?.location}</strong>
+          {isSupabaseConfigured && ` • ${t.connectedCloud}`}
         </p>
       </div>
 
@@ -144,26 +146,26 @@ export default function BuyerDashboard({ currentUser, lang }) {
       {/* Stats */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>Active Demand Quota</h3>
-          <h2>{activeNeededTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>Tons</span></h2>
-          <p>{bids.length} Active Broadcast Requisitions</p>
+          <h3>{t.statTarget}</h3>
+          <h2>{activeNeededTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>{t.tons}</span></h2>
+          <p>{bids.length} {t.statActiveBids}</p>
         </div>
         <div className="stat-card">
-          <h3>Secured / Contracted</h3>
-          <h2 className="stat-accent">{totalContractedTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>Tons</span></h2>
-          <p>{contracts.length} Finalized Deals</p>
+          <h3>{t.statFulfilled}</h3>
+          <h2 className="stat-accent">{totalContractedTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>{t.tons}</span></h2>
+          <p>{contracts.length} Deals</p>
         </div>
         <div className="stat-card">
-          <h3>Active Stubble Deficit</h3>
+          <h3>{t.statActiveBids}</h3>
           <h2 style={{ color: activeNeededTons > 0 ? "#f87171" : "#34d399" }}>
-            {activeNeededTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>Tons</span>
+            {activeNeededTons.toFixed(1)} <span style={{ fontSize: "1rem", fontWeight: 600 }}>{t.tons}</span>
           </h2>
-          <p>{activeNeededTons > 0 ? "Needed from Farmer Pools" : "All Requirements Met"}</p>
+          <p>{activeNeededTons > 0 ? t.needMoreVolume : "Fulfilled"}</p>
         </div>
         <div className="stat-card">
-          <h3>Unit Landed Cost</h3>
+          <h3>{t.statAvgRate}</h3>
           <h2>₹{totalLandedPerTon.toLocaleString()}</h2>
-          <p>Per Ton Delivered</p>
+          <p>Per {t.tons}</p>
         </div>
       </div>
 
@@ -171,13 +173,10 @@ export default function BuyerDashboard({ currentUser, lang }) {
       <div className="glass-panel" style={{ border: activeNeededTons > 0 ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)", boxShadow: "0 0 25px rgba(16, 185, 129, 0.1)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
-            <h2>⚡ Active Biomass Deficit & Live Required Stubble Tonnage Monitor</h2>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Real-time plant supply tracker tracking live procurement progress against active boiler feed requirements.
-            </p>
+            <h2>⚡ {t.buyerSub}</h2>
           </div>
           <span className={`badge ${activeNeededTons === 0 ? "badge-success" : "badge-warning"}`}>
-            {activeNeededTons === 0 ? "All Requisitions Fulfilled (0 Tons Needed)" : `${activeNeededTons.toFixed(1)} Tons Needed from Farmers`}
+            {activeNeededTons === 0 ? "All Requisitions Fulfilled" : `${activeNeededTons.toFixed(1)} ${t.tons} Needed`}
           </span>
         </div>
 
@@ -192,23 +191,20 @@ export default function BuyerDashboard({ currentUser, lang }) {
           marginTop: "1rem"
         }}>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Current Active Broadcast Demand</div>
-            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#fff" }}>{activeNeededTons.toFixed(1)} Tons</div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{bids.length} Active Open Requisition(s)</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.statTarget}</div>
+            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#fff" }}>{activeNeededTons.toFixed(1)} {t.tons}</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{bids.length} Open Requisition(s)</div>
           </div>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Net Active Needed Tonnage (Deficit)</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.needMoreVolume}</div>
             <div style={{ fontSize: "1.8rem", fontWeight: 900, color: activeNeededTons > 0 ? "#f87171" : "#34d399" }}>
-              {activeNeededTons.toFixed(1)} Tons
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              {activeNeededTons > 0 ? "Waiting for Farmer Stubble Pool fulfillment" : "No pending deficit"}
+              {activeNeededTons.toFixed(1)} {t.tons}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Total Fulfilled / Contracted Supply</div>
-            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#34d399" }}>{totalContractedTons.toFixed(1)} Tons</div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{contracts.length} Completed Pickup Deals</div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t.statFulfilled}</div>
+            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "#34d399" }}>{totalContractedTons.toFixed(1)} {t.tons}</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{contracts.length} Completed Deals</div>
           </div>
         </div>
       </div>
@@ -216,25 +212,25 @@ export default function BuyerDashboard({ currentUser, lang }) {
       {/* Optimized Supply Feed (Proximity Priority) */}
       <div className="glass-panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <h2>🔎 Available Stubble Supply in Your Region (Proximity Prioritized)</h2>
-          <span className="badge badge-success">Uncontracted Stubble Only ({farms.length})</span>
+          <h2>🔎 {t.supplyFeedTitle}</h2>
+          <span className="badge badge-success">({farms.length})</span>
         </div>
 
         {farms.length === 0 ? (
           <p style={{ color: "var(--text-muted)", padding: "1.5rem 0", textAlign: "center" }}>
-            🌱 No uncontracted stubble listings currently in this area. When farmers register or update their farms, they will appear here.
+            🌱 No uncontracted stubble listings currently in this area.
           </p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Farm / Cluster Location</th>
-                <th>Crop</th>
-                <th>Forecasted Yield</th>
-                <th>Harvest Readiness</th>
+                <th>{t.farmerId} / Location</th>
+                <th>{t.previewCrop}</th>
+                <th>{t.statStubble}</th>
+                <th>{t.statHarvest}</th>
                 <th>Distance</th>
-                <th>Listing Type</th>
-                <th>Action</th>
+                <th>Type</th>
+                <th>{t.action}</th>
               </tr>
             </thead>
             <tbody>
@@ -246,18 +242,18 @@ export default function BuyerDashboard({ currentUser, lang }) {
                   <tr key={farm.id}>
                     <td>
                       <div style={{ fontWeight: 700 }}>{farm.farmer_name}</div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>📍 {farm.location} • {farm.farm_area} Acres</div>
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>📍 {farm.location} • {farm.farm_area} {t.acres}</div>
                     </td>
                     <td>🌾 {farm.crop}</td>
                     <td>
                       <strong style={{ color: "var(--primary-light)", fontSize: "1.05rem" }}>
-                        {farm.available_stubble_tons} Tons
+                        {farm.available_stubble_tons} {t.tons}
                       </strong>
                     </td>
                     <td>
                       <div>{farm.predicted_harvest}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        {farm.harvest_expected_in_days <= 0 ? "Harvest Ready" : `${farm.harvest_expected_in_days} days remaining`}
+                        {farm.harvest_expected_in_days <= 0 ? "Harvest Ready" : `${farm.harvest_expected_in_days} ${t.daysRemaining}`}
                       </div>
                     </td>
                     <td>
@@ -265,7 +261,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
                     </td>
                     <td>
                       <span className={`badge ${farm.is_pre_harvest_listed ? "badge-success" : "badge-warning"}`}>
-                        {farm.is_pre_harvest_listed ? "Smart Contract Live" : "Pre-Listing Queue"}
+                        {farm.is_pre_harvest_listed ? t.smartContractActive : t.preHarvestWindow}
                       </span>
                     </td>
                     <td>
@@ -289,9 +285,9 @@ export default function BuyerDashboard({ currentUser, lang }) {
       <div className="main-grid">
         {/* Post Buy Requirement */}
         <div className="glass-panel" style={{ marginBottom: 0 }}>
-          <h2>📦 Generate Purchase Requisition (Broadcast Smart Bid)</h2>
+          <h2>📦 {t.createBidTitle}</h2>
           <form onSubmit={handlePostRequisition}>
-            <label className="field-label">Procurement Facility District</label>
+            <label className="field-label">{t.bidTargetDistrict}</label>
             <select
               className="field-select"
               value={reqForm.location}
@@ -302,7 +298,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
               ))}
             </select>
 
-            <label className="field-label">Target Volume (Tons Required / Quota)</label>
+            <label className="field-label">{t.bidRequiredTons}</label>
             <input
               type="number"
               className="field-input"
@@ -311,7 +307,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
               required
             />
 
-            <label className="field-label">Base Bid Rate (₹/Ton)</label>
+            <label className="field-label">{t.bidOfferedRate}</label>
             <input
               type="number"
               className="field-input"
@@ -320,7 +316,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
               required
             />
 
-            <label className="field-label">Max Logistics Procurement Radius (km)</label>
+            <label className="field-label">Max Procurement Radius (km)</label>
             <input
               type="number"
               className="field-input"
@@ -331,7 +327,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
 
             <div className="btn-row">
               <button type="submit" className="action-btn action-btn-primary">
-                Save & Broadcast Bid
+                {t.btnPostBid}
               </button>
             </div>
           </form>
@@ -342,7 +338,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
           <div className="glass-panel" style={{ marginBottom: 0 }}>
             <h2>📊 Unit Economics & Landed Cost Analysis</h2>
 
-            <label className="field-label">Negotiated Commodity Price (₹/Ton)</label>
+            <label className="field-label">Negotiated Commodity Price (₹/{t.tons})</label>
             <input
               type="number"
               className="field-input"
@@ -350,7 +346,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
               onChange={(e) => setUnitEcon({ ...unitEcon, negRate: e.target.value })}
             />
 
-            <label className="field-label">Logistical Freight Estimate (₹/Ton)</label>
+            <label className="field-label">Freight Estimate (₹/{t.tons})</label>
             <input
               type="number"
               className="field-input"
@@ -358,7 +354,7 @@ export default function BuyerDashboard({ currentUser, lang }) {
               onChange={(e) => setUnitEcon({ ...unitEcon, freightRate: e.target.value })}
             />
 
-            <label className="field-label">Handling, Loading & Processing (₹/Ton)</label>
+            <label className="field-label">Handling & Loading (₹/{t.tons})</label>
             <input
               type="number"
               className="field-input"
@@ -369,40 +365,34 @@ export default function BuyerDashboard({ currentUser, lang }) {
             <div className="harvest-display" style={{ marginTop: "1.25rem", textAlign: "center" }}>
               <p>Total Landed Cost</p>
               <div className="harvest-date-big" style={{ fontSize: "2.2rem" }}>
-                ₹{totalLandedPerTon.toLocaleString()} <span style={{ fontSize: "0.95rem", color: "var(--text-muted)" }}>/ Ton Delivered</span>
+                ₹{totalLandedPerTon.toLocaleString()} <span style={{ fontSize: "0.95rem", color: "var(--text-muted)" }}>/ {t.tons}</span>
               </div>
-              <p style={{ marginTop: "0.4rem" }}>
-                Total Budget for {reqForm.targetTons} Tons:{" "}
-                <strong style={{ color: "var(--primary-light)" }}>
-                  ₹{(totalLandedPerTon * (parseFloat(reqForm.targetTons) || 1)).toLocaleString()}
-                </strong>
-              </p>
             </div>
           </div>
 
           {/* Your Active Broadcast Bids */}
           <div className="glass-panel" style={{ marginBottom: 0 }}>
-            <h2>📢 Your Active Broadcast Bids ({bids.length})</h2>
+            <h2>📢 {t.statActiveBids} ({bids.length})</h2>
             {bids.length === 0 ? (
               <p style={{ color: "var(--text-muted)", padding: "0.8rem 0" }}>
-                No active pending bids. Broadcast a new requisition above.
+                No active pending bids.
               </p>
             ) : (
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Bid ID</th>
-                    <th>Volume Quota</th>
-                    <th>Rate/Ton</th>
+                    <th>{t.requiredVolume}</th>
+                    <th>{t.offeredRate}</th>
                     <th>Radius</th>
-                    <th>Status</th>
+                    <th>{t.status}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bids.map((b) => (
                     <tr key={b.id}>
                       <td><strong>{b.id}</strong></td>
-                      <td>{b.target_tons} Tons</td>
+                      <td>{b.target_tons} {t.tons}</td>
                       <td>₹{parseFloat(b.offered_rate).toLocaleString()}</td>
                       <td>{b.radius_km} km</td>
                       <td><span className="badge badge-success">ACTIVE</span></td>
@@ -417,21 +407,21 @@ export default function BuyerDashboard({ currentUser, lang }) {
 
       {/* Transaction History for this Buyer */}
       <div className="glass-panel" style={{ marginTop: "1.5rem" }}>
-        <h2>📜 Your Procurement Contracts & Pickup Transactions</h2>
+        <h2>📜 {t.buyerContractsTitle}</h2>
         {contracts.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", padding: "1rem 0" }}>No confirmed contracts yet. When farmers or farmer pools accept your bids, contracts will appear here.</p>
+          <p style={{ color: "var(--text-muted)", padding: "1rem 0" }}>{t.noContracts}</p>
         ) : (
           <table className="data-table">
             <thead>
               <tr>
-                <th>Contract ID</th>
+                <th>{t.contractId}</th>
                 <th>Supplier / Pool</th>
                 <th>Location</th>
-                <th>Volume</th>
-                <th>Agreed Rate</th>
-                <th>Total Value</th>
-                <th>Pickup Schedule</th>
-                <th>Status</th>
+                <th>{t.tonnage}</th>
+                <th>{t.rate}</th>
+                <th>{t.totalValue}</th>
+                <th>{t.pickupDate}</th>
+                <th>{t.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -440,8 +430,8 @@ export default function BuyerDashboard({ currentUser, lang }) {
                   <td><strong>{c.id}</strong></td>
                   <td>{c.farmer_name}</td>
                   <td>{c.location}</td>
-                  <td>{c.tonnage} Tons</td>
-                  <td>₹{parseFloat(c.rate_per_ton).toLocaleString()} / Ton</td>
+                  <td>{c.tonnage} {t.tons}</td>
+                  <td>₹{parseFloat(c.rate_per_ton).toLocaleString()} / {t.tons}</td>
                   <td><strong style={{ color: "var(--primary-light)" }}>₹{parseFloat(c.total_value).toLocaleString()}</strong></td>
                   <td>{c.pickup_date}</td>
                   <td><span className="badge badge-success">{c.status}</span></td>
