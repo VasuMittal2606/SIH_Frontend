@@ -256,36 +256,71 @@ export async function getFarmerFarms(farmerId) {
     const { data, error } = await supabase
       .from("farms")
       .select("*")
-      .eq("farmer_id", farmerId);
+      .eq("farmer_id", String(farmerId).trim());
     if (error) console.error("Supabase getFarmerFarms error", error);
     return data || [];
   }
 
   const db = getLocalDb();
-  return (db.farms || []).filter((f) => f.farmer_id === farmerId);
+  return (db.farms || []).filter((f) => String(f.farmer_id).trim() === String(farmerId).trim());
 }
 
 export async function saveFarmerFarm(farmData) {
+  const cleanId = String(farmData.farmer_id).trim();
+
   if (isSupabaseConfigured) {
-    const { data, error } = await supabase
+    const { data: existing } = await supabase
       .from("farms")
-      .upsert([farmData], { onConflict: "farmer_id" })
-      .select();
-    if (error) console.error("Supabase saveFarmerFarm error", error);
-    return data?.[0];
+      .select("*")
+      .eq("farmer_id", cleanId);
+
+    if (existing && existing.length > 0) {
+      const { data, error } = await supabase
+        .from("farms")
+        .update({
+          farmer_name: farmData.farmer_name,
+          location: farmData.location,
+          crop: farmData.crop,
+          farm_area: farmData.farm_area,
+          sowing_date: farmData.sowing_date,
+          predicted_harvest: farmData.predicted_harvest,
+          harvest_expected_in_days: farmData.harvest_expected_in_days,
+          available_stubble_tons: farmData.available_stubble_tons,
+          is_manual_override: farmData.is_manual_override,
+          is_pre_harvest_listed: farmData.is_pre_harvest_listed,
+          status: farmData.status || "AVAILABLE",
+        })
+        .eq("farmer_id", cleanId)
+        .select();
+      if (error) console.error("Supabase update farm error", error);
+      return data?.[0] || farmData;
+    } else {
+      const { data, error } = await supabase
+        .from("farms")
+        .insert([{
+          ...farmData,
+          farmer_id: cleanId,
+          status: farmData.status || "AVAILABLE",
+        }])
+        .select();
+      if (error) console.error("Supabase insert farm error", error);
+      return data?.[0] || farmData;
+    }
   }
 
   const db = getLocalDb();
   if (!db.farms) db.farms = [];
-  const index = db.farms.findIndex((f) => f.farmer_id === farmData.farmer_id);
+  const index = db.farms.findIndex((f) => String(f.farmer_id).trim() === cleanId);
   if (index >= 0) {
     db.farms[index] = {
       ...db.farms[index],
       ...farmData,
+      farmer_id: cleanId,
       status: farmData.status || "AVAILABLE",
     };
   } else {
     farmData.id = `FARM-${Date.now().toString().slice(-4)}`;
+    farmData.farmer_id = cleanId;
     farmData.status = farmData.status || "AVAILABLE";
     db.farms.push(farmData);
   }
@@ -295,11 +330,13 @@ export async function saveFarmerFarm(farmData) {
 
 // Stubble Pooling Directory: Returns uncontracted neighbor farms
 export async function getNeighboringFarmsForPooling(currentFarmerId, location) {
+  const cleanId = String(currentFarmerId).trim();
+
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from("farms")
       .select("*")
-      .neq("farmer_id", currentFarmerId)
+      .neq("farmer_id", cleanId)
       .eq("status", "AVAILABLE");
     if (error) console.error("Supabase getNeighboringFarmsForPooling error", error);
     return data || [];
@@ -307,7 +344,7 @@ export async function getNeighboringFarmsForPooling(currentFarmerId, location) {
 
   const db = getLocalDb();
   return (db.farms || []).filter(
-    (f) => f.farmer_id !== currentFarmerId && f.status === "AVAILABLE"
+    (f) => String(f.farmer_id).trim() !== cleanId && f.status === "AVAILABLE"
   );
 }
 
@@ -321,18 +358,17 @@ export async function sendPoolInvitation(senderUser, recipientFarm) {
     const { data: existing } = await supabase
       .from("pool_invitations")
       .select("*")
-      .or(`and(sender_id.eq.${senderId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${senderId})`)
-      .single();
+      .or(`and(sender_id.eq.${senderId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${senderId})`);
 
-    if (existing) {
+    if (existing && existing.length > 0) {
       const { data, error } = await supabase
         .from("pool_invitations")
         .update({ status: "PENDING", created_at: new Date().toISOString() })
-        .eq("id", existing.id)
+        .eq("id", existing[0].id)
         .select()
         .single();
       if (error) console.error("Supabase update pool invite error", error);
-      return data || existing;
+      return data || existing[0];
     }
 
     const { data, error } = await supabase
@@ -488,35 +524,39 @@ export async function cancelPoolInvitation(inviteId) {
 // ================= BIDS MANAGEMENT =================
 
 export async function getFarmerRelevantBids(farmerId, farmerLocation) {
+  const cleanId = String(farmerId || "").trim();
+
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from("bids")
       .select("*")
       .eq("status", "ACTIVE")
-      .or(`target_farmer_id.eq.${farmerId},target_farmer_id.is.null`);
+      .or(`target_farmer_id.eq.${cleanId},target_farmer_id.is.null`);
     if (error) console.error("Supabase getFarmerRelevantBids error", error);
     return data || [];
   }
 
   const db = getLocalDb();
   return (db.bids || []).filter(
-    (b) => b.status === "ACTIVE" && (!b.target_farmer_id || b.target_farmer_id === farmerId)
+    (b) => b.status === "ACTIVE" && (!b.target_farmer_id || b.target_farmer_id === cleanId)
   );
 }
 
 export async function getBuyerActiveBids(buyerId) {
+  const cleanId = String(buyerId || "").trim();
+
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from("bids")
       .select("*")
-      .eq("buyer_id", buyerId)
+      .eq("buyer_id", cleanId)
       .eq("status", "ACTIVE");
     if (error) console.error("Supabase getBuyerBids error", error);
     return data || [];
   }
 
   const db = getLocalDb();
-  return (db.bids || []).filter((b) => b.buyer_id === buyerId && b.status === "ACTIVE");
+  return (db.bids || []).filter((b) => b.buyer_id === cleanId && b.status === "ACTIVE");
 }
 
 export async function createBid(bidData) {
@@ -561,12 +601,14 @@ export async function getAvailableFarmsForBuyer(buyerLocation, radiusKm = 50) {
 // ================= CONTRACTS & TRANSACTIONS =================
 
 export async function getUserContracts(userId, role) {
+  const cleanId = String(userId || "").trim();
+
   if (isSupabaseConfigured) {
     const queryField = role === "farmer" ? "farmer_id" : "buyer_id";
     const { data, error } = await supabase
       .from("contracts")
       .select("*")
-      .eq(queryField, userId)
+      .eq(queryField, cleanId)
       .order("created_at", { ascending: false });
     if (error) console.error("Supabase getUserContracts error", error);
     return data || [];
@@ -575,11 +617,11 @@ export async function getUserContracts(userId, role) {
   const db = getLocalDb();
   if (role === "farmer") {
     return (db.contracts || []).filter(
-      (c) => c.farmer_id === userId || (c.pooled_members && c.pooled_members.some((m) => m.farmer_id === userId))
+      (c) => c.farmer_id === cleanId || (c.pooled_members && c.pooled_members.some((m) => m.farmer_id === cleanId))
     );
   }
   if (role === "buyer") {
-    return (db.contracts || []).filter((c) => c.buyer_id === userId);
+    return (db.contracts || []).filter((c) => c.buyer_id === cleanId);
   }
   return db.contracts || [];
 }

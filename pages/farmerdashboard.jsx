@@ -173,11 +173,36 @@ export default function FarmerDashboard({ currentUser, lang }) {
   const runMlPrediction = async (details) => {
     setLoading(true);
     setErrorMsg("");
+
+    const areaNum = parseFloat(details.farmArea) || 12;
+    const computedStubble = +(areaNum * 1.85).toFixed(1);
+
+    // Save immediate farm state first to ensure database reflects changes instantly
+    await saveFarmerFarm({
+      farmer_id: currentUser.user_id,
+      farmer_name: currentUser.name,
+      location: details.location,
+      crop: details.crop,
+      farm_area: areaNum,
+      sowing_date: details.sowingDate,
+      predicted_harvest: prediction.predicted_harvest,
+      harvest_expected_in_days: prediction.harvest_expected_in_days,
+      available_stubble_tons: computedStubble,
+      is_manual_override: isManualOverride,
+      is_pre_harvest_listed: (prediction.harvest_expected_in_days || 83) <= 14,
+      status: "AVAILABLE",
+    });
+
+    setPrediction((prev) => ({
+      ...prev,
+      available_stubble: `${computedStubble} Tons`,
+    }));
+
     try {
       const result = await fetchHarvestPrediction({
         crop: details.crop,
         location: details.location,
-        farm_area: parseFloat(details.farmArea) || 12,
+        farm_area: areaNum,
         sowing_date: details.sowingDate,
       });
 
@@ -205,21 +230,18 @@ export default function FarmerDashboard({ currentUser, lang }) {
           farmer_name: currentUser.name,
           location: details.location,
           crop: details.crop,
-          farm_area: parseFloat(details.farmArea),
+          farm_area: areaNum,
           sowing_date: details.sowingDate,
           predicted_harvest: predObj.predicted_harvest,
           harvest_expected_in_days: daysRem,
-          available_stubble_tons: parseFloat(String(predObj.available_stubble).replace(/[^\d.]/g, "")) || (details.farmArea * 1.85),
+          available_stubble_tons: parseFloat(String(predObj.available_stubble).replace(/[^\d.]/g, "")) || computedStubble,
           is_manual_override: false,
           is_pre_harvest_listed: daysRem <= 14,
           status: "AVAILABLE",
         });
-      } else {
-        setErrorMsg("Unable to connect to FastAPI ML backend. Check backend status.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Error fetching ML prediction.");
     } finally {
       setLoading(false);
     }
@@ -228,9 +250,13 @@ export default function FarmerDashboard({ currentUser, lang }) {
   // Save farm profile
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setFarmDetails(editForm);
+    const updated = {
+      ...editForm,
+      farmArea: parseFloat(editForm.farmArea) || 12,
+    };
+    setFarmDetails(updated);
     setIsEditing(false);
-    await runMlPrediction(editForm);
+    await runMlPrediction(updated);
   };
 
   // Manual Date Override
