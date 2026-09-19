@@ -167,7 +167,9 @@ function App() {
   const t = translations[lang] || translations.en;
 
   // Account Management States
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState(1);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [accountNotice, setAccountNotice] = useState("");
 
@@ -311,19 +313,129 @@ function App() {
             <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
           </select>
           {currentUser && (
-            <>
+            <div style={{ position: "relative", display: "inline-block" }}>
               <button
-                className="btn-delete-account"
-                style={{ display: "inline-block" }}
-                onClick={() => setShowDeleteModal(true)}
-                title={t.btnDeleteAccount}
+                className="btn-settings-cog"
+                onClick={() => setShowSettingsMenu((prev) => !prev)}
+                title={t.settings || "Settings"}
+                aria-label="Settings"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "8px",
+                  background: showSettingsMenu ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.08)",
+                  border: showSettingsMenu ? "1px solid var(--primary)" : "1px solid var(--card-border)",
+                  color: showSettingsMenu ? "var(--primary-light)" : "var(--text-dark)",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  transition: "var(--transition)",
+                }}
               >
-                🗑️ {t.btnDeleteAccount}
+                ⚙️
               </button>
-              <button className="btn-logout" style={{ display: "inline-block" }} onClick={handleLogout}>
-                {t.btnLogout}
-              </button>
-            </>
+
+              {showSettingsMenu && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 998 }}
+                    onClick={() => setShowSettingsMenu(false)}
+                  />
+                  <div
+                    className="settings-dropdown-menu"
+                    style={{
+                      position: "absolute",
+                      top: "44px",
+                      right: 0,
+                      background: "#0f172a",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      borderRadius: "12px",
+                      padding: "8px",
+                      minWidth: "220px",
+                      boxShadow: "0 14px 35px rgba(0, 0, 0, 0.65)",
+                      zIndex: 999,
+                      backdropFilter: "blur(16px)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px"
+                    }}
+                  >
+                    <div style={{
+                      padding: "8px 10px",
+                      borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                      marginBottom: "2px"
+                    }}>
+                      <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        Signed in as
+                      </div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {currentUser.name}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "var(--primary-light)" }}>
+                        ID: {currentUser.user_id}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="settings-menu-item"
+                      onClick={() => {
+                        setShowSettingsMenu(false);
+                        handleLogout();
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        width: "100%",
+                        background: "rgba(255, 255, 255, 0.04)",
+                        border: "1px solid transparent",
+                        color: "var(--text-dark)",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      🚪 {t.btnLogout}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="settings-menu-item danger"
+                      onClick={() => {
+                        setShowSettingsMenu(false);
+                        setDeleteConfirmStep(1);
+                        setShowDeleteModal(true);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        width: "100%",
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "1px solid rgba(239, 68, 68, 0.25)",
+                        color: "#f87171",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      🗑️ {t.btnDeleteAccount}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       </header>
@@ -674,54 +786,134 @@ function App() {
         </div>
       )}
 
-      {/* ========= DELETE ACCOUNT CONFIRMATION MODAL ========= */}
+      {/* ========= TWO-STEP DELETE ACCOUNT CONFIRMATION MODAL ========= */}
       {showDeleteModal && (
-        <div className="auth-overlay" style={{ zIndex: 999 }}>
-          <div className="auth-card" style={{ maxWidth: "460px", border: "1px solid var(--error-border)", textAlign: "center" }}>
-            <div style={{ fontSize: "2.6rem", marginBottom: "0.5rem" }}>⚠️</div>
-            <h2 style={{ color: "#f87171", fontSize: "1.35rem" }}>{t.deleteConfirmTitle}</h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: "0.8rem 0 1.6rem", lineHeight: "1.6" }}>
-              {t.deleteConfirmDesc}
-            </p>
-            <div style={{ display: "flex", gap: "0.85rem", justifyContent: "center", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                style={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "1px solid var(--card-border)",
-                  color: "var(--text-dark)",
-                  padding: "0.6rem 1.3rem",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  transition: "var(--transition)"
-                }}
-                onClick={() => setShowDeleteModal(false)}
-                disabled={isDeletingAccount}
-              >
-                {t.btnCancel}
-              </button>
-              <button
-                type="button"
-                style={{
-                  background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
-                  border: "none",
-                  color: "#ffffff",
-                  padding: "0.6rem 1.3rem",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)",
-                  transition: "var(--transition)"
-                }}
-                onClick={handleDeleteAccount}
-                disabled={isDeletingAccount}
-              >
-                {isDeletingAccount ? "⏳ Deleting Data..." : t.btnConfirmDelete}
-              </button>
-            </div>
+        <div className="auth-overlay" style={{ zIndex: 10000 }}>
+          <div className="auth-card" style={{ maxWidth: "480px", border: deleteConfirmStep === 1 ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--error-border)", textAlign: "center" }}>
+            {deleteConfirmStep === 1 ? (
+              <>
+                <div style={{ fontSize: "2.6rem", marginBottom: "0.3rem" }}>⚠️</div>
+                <div style={{
+                  display: "inline-block",
+                  padding: "3px 12px",
+                  borderRadius: "20px",
+                  background: "rgba(245, 158, 11, 0.15)",
+                  color: "#fbbf24",
+                  fontSize: "0.74rem",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  marginBottom: "0.75rem"
+                }}>
+                  Step 1 of 2
+                </div>
+                <h2 style={{ color: "#fbbf24", fontSize: "1.3rem" }}>{t.deleteStep1Title}</h2>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: "0.8rem 0 1.6rem", lineHeight: "1.6" }}>
+                  {t.deleteStep1Desc}
+                </p>
+                <div style={{ display: "flex", gap: "0.85rem", justifyContent: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-dark)",
+                      padding: "0.6rem 1.3rem",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      transition: "var(--transition)"
+                    }}
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeleteConfirmStep(1);
+                    }}
+                  >
+                    {t.btnCancel}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                      border: "none",
+                      color: "#ffffff",
+                      padding: "0.6rem 1.3rem",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      boxShadow: "0 0 18px rgba(245, 158, 11, 0.35)",
+                      transition: "var(--transition)"
+                    }}
+                    onClick={() => setDeleteConfirmStep(2)}
+                  >
+                    {t.btnProceedStep2}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: "2.6rem", marginBottom: "0.3rem" }}>🚨</div>
+                <div style={{
+                  display: "inline-block",
+                  padding: "3px 12px",
+                  borderRadius: "20px",
+                  background: "rgba(239, 68, 68, 0.2)",
+                  color: "#f87171",
+                  fontSize: "0.74rem",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  marginBottom: "0.75rem"
+                }}>
+                  Final Confirmation (Step 2 of 2)
+                </div>
+                <h2 style={{ color: "#f87171", fontSize: "1.3rem" }}>{t.deleteStep2Title}</h2>
+                <p style={{ color: "#fca5a5", fontSize: "0.88rem", margin: "0.8rem 0 1.6rem", lineHeight: "1.6" }}>
+                  {t.deleteStep2Desc}
+                </p>
+                <div style={{ display: "flex", gap: "0.85rem", justifyContent: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-dark)",
+                      padding: "0.6rem 1.3rem",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      transition: "var(--transition)"
+                    }}
+                    onClick={() => setDeleteConfirmStep(1)}
+                    disabled={isDeletingAccount}
+                  >
+                    {t.btnBackStep1}
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                      border: "none",
+                      color: "#ffffff",
+                      padding: "0.6rem 1.3rem",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)",
+                      transition: "var(--transition)"
+                    }}
+                    onClick={handleDeleteAccount}
+                    disabled={isDeletingAccount}
+                  >
+                    {isDeletingAccount ? "⏳ Deleting Data..." : t.btnConfirmDelete}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
